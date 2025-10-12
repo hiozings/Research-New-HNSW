@@ -1,0 +1,1 @@
+/usr/bin/g++ -O3 -DNDEBUG CMakeFiles/hnsw_service.dir/hnsw_service/main.cpp.o CMakeFiles/hnsw_service.dir/hnsw_service/hnsw_graph.cpp.o -o ../bin/hnsw_service   -L/usr/local/lib  -Wl,-rpath,/usr/local/lib /usr/local/lib/librocksdb.a -lz -lbz2 -lzstd -lsnappy -llz4 -ldl -lm -lstdc++ 

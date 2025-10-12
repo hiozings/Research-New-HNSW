@@ -1,0 +1,5 @@
+/home/zyx/projects/pypro/hnsw/build/CMakeFiles/storage_service.dir
+/home/zyx/projects/pypro/hnsw/build/CMakeFiles/hnsw_service.dir
+/home/zyx/projects/pypro/hnsw/build/CMakeFiles/index_builder.dir
+/home/zyx/projects/pypro/hnsw/build/CMakeFiles/edit_cache.dir
+/home/zyx/projects/pypro/hnsw/build/CMakeFiles/rebuild_cache.dir

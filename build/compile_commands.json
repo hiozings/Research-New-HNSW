@@ -1,0 +1,27 @@
+[
+{
+  "directory": "/home/zyx/projects/pypro/hnsw/build",
+  "command": "/usr/bin/g++  -I/home/zyx/projects/pypro/hnsw -I/home/zyx/projects/pypro/hnsw/hnswlib -I/home/zyx/projects/pypro/hnsw/nlohmann -I/home/zyx/projects/pypro/hnsw/tools -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/storage_service.dir/storage_service/main.cpp.o -c /home/zyx/projects/pypro/hnsw/storage_service/main.cpp",
+  "file": "/home/zyx/projects/pypro/hnsw/storage_service/main.cpp"
+},
+{
+  "directory": "/home/zyx/projects/pypro/hnsw/build",
+  "command": "/usr/bin/g++  -I/home/zyx/projects/pypro/hnsw -I/home/zyx/projects/pypro/hnsw/hnswlib -I/home/zyx/projects/pypro/hnsw/nlohmann -I/home/zyx/projects/pypro/hnsw/tools -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/storage_service.dir/storage_service/rocksdb_store.cpp.o -c /home/zyx/projects/pypro/hnsw/storage_service/rocksdb_store.cpp",
+  "file": "/home/zyx/projects/pypro/hnsw/storage_service/rocksdb_store.cpp"
+},
+{
+  "directory": "/home/zyx/projects/pypro/hnsw/build",
+  "command": "/usr/bin/g++  -I/home/zyx/projects/pypro/hnsw -I/home/zyx/projects/pypro/hnsw/hnswlib -I/home/zyx/projects/pypro/hnsw/nlohmann -I/home/zyx/projects/pypro/hnsw/tools -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/hnsw_service.dir/hnsw_service/main.cpp.o -c /home/zyx/projects/pypro/hnsw/hnsw_service/main.cpp",
+  "file": "/home/zyx/projects/pypro/hnsw/hnsw_service/main.cpp"
+},
+{
+  "directory": "/home/zyx/projects/pypro/hnsw/build",
+  "command": "/usr/bin/g++  -I/home/zyx/projects/pypro/hnsw -I/home/zyx/projects/pypro/hnsw/hnswlib -I/home/zyx/projects/pypro/hnsw/nlohmann -I/home/zyx/projects/pypro/hnsw/tools -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/hnsw_service.dir/hnsw_service/hnsw_graph.cpp.o -c /home/zyx/projects/pypro/hnsw/hnsw_service/hnsw_graph.cpp",
+  "file": "/home/zyx/projects/pypro/hnsw/hnsw_service/hnsw_graph.cpp"
+},
+{
+  "directory": "/home/zyx/projects/pypro/hnsw/build",
+  "command": "/usr/bin/g++  -I/home/zyx/projects/pypro/hnsw -I/home/zyx/projects/pypro/hnsw/hnswlib -I/home/zyx/projects/pypro/hnsw/nlohmann -I/home/zyx/projects/pypro/hnsw/tools -O3 -DNDEBUG -std=gnu++20 -o CMakeFiles/index_builder.dir/index_builder/build.cpp.o -c /home/zyx/projects/pypro/hnsw/index_builder/build.cpp",
+  "file": "/home/zyx/projects/pypro/hnsw/index_builder/build.cpp"
+}
+]

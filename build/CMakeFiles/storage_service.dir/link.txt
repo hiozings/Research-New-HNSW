@@ -1,0 +1,1 @@
+/usr/bin/g++ -O3 -DNDEBUG CMakeFiles/storage_service.dir/storage_service/main.cpp.o CMakeFiles/storage_service.dir/storage_service/rocksdb_store.cpp.o -o ../bin/storage_service   -L/usr/local/lib  -Wl,-rpath,/usr/local/lib /usr/local/lib/librocksdb.a -lz -lbz2 -lzstd -lsnappy -llz4 -ldl -lm -lstdc++ 

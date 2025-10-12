@@ -1,0 +1,78 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"jsonFile" : "directory-.-Release-f5ebdc15457944623624.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.14"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"name" : "Release",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "HNSW_Vector_Store",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "hnsw_service::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-hnsw_service-Release-1ce2674924044fcb2371.json",
+					"name" : "hnsw_service",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "index_builder::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-index_builder-Release-2a0d17d59f2951fcb63d.json",
+					"name" : "index_builder",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "storage_service::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-storage_service-Release-73d051a0daf4d34fc983.json",
+					"name" : "storage_service",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/home/zyx/projects/pypro/hnsw/build",
+		"source" : "/home/zyx/projects/pypro/hnsw"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 3
+	}
+}
