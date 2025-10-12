@@ -77,8 +77,8 @@ def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=
     plt.ylabel('RSS (MB)')
     plt.legend()
     plt.grid(True)
-    plt.savefig(f'memory_usage_{mode}.png', dpi=dpi)
-    with open(f'results_{mode}.json','w') as f:
+    plt.savefig(f'res/memory_usage_{mode}.png', dpi=dpi)
+    with open(f'res/results_{mode}.json','w') as f:
         json.dump(results, f, indent=2)
     print(f"✅ {mode} experiment finished. Results saved to results_{mode}.json and memory_usage_{mode}.png")
 
