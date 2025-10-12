@@ -24,7 +24,7 @@ def clean_data(dbpath='./rocksdb_data'):
     if os.path.exists('./hnsw_graph.bin'):
         os.remove('./hnsw_graph.bin')
 
-def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=200, n_search=20):
+def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=200, n_search=20, M=16, ef_construction=200):
     results = []
     mode = "optimized" if opt_mode else "baseline"
     os.makedirs('res', exist_ok=True)
@@ -38,7 +38,8 @@ def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=
         time.sleep(0.5)
 
         # 构建索引
-        proc = subprocess.run(['./index_builder', str(N), str(dim), dbpath, './hnsw_graph.bin'])
+        proc = subprocess.run('./index_builder', [str(N), str(dim), dbpath, './hnsw_graph.bin',
+                              str(M), str(ef_construction)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if proc.returncode != 0:
             print("index_builder failed with return code", proc.returncode)
             return
@@ -54,7 +55,8 @@ def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=
             '--storage', 'http://127.0.0.1:8081',
             '--port', '8080',
             '--ef', '200',
-            '--optimized', str(int(opt_mode))]
+            '--optimized', str(int(opt_mode)),
+            '--dim', str(dim)]
         )
         time.sleep(1.5)
 
@@ -67,7 +69,7 @@ def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=
         # 实时测量搜索过程内存
         print(f"[INFO] Starting {n_search} search requests to measure memory...")
         mem_trace = []
-        query = {"query": [0.1] * dim, "k": 10}
+        query = {"query": [0.1] * dim, "k": 10, 'ef': 200}
 
         for i in range(n_search):
             try:
@@ -136,13 +138,15 @@ if __name__ == '__main__':
     parser.add_argument('--opt', action='store_true', help='also run optimized mode test')
     parser.add_argument('--dpi', type=int, default=200)
     parser.add_argument('--n_search', type=int, default=20, help='number of /search requests per test')
+    parser.add_argument('--M', type=int, default=16, help='max neighbors per node')
+    parser.add_argument('--ef_construction', type=int, default=200, help='ef_construction parameter')
     args = parser.parse_args()
 
     # 非优化模式
-    run_experiment(args.sizes, args.dim, opt_mode=False, dpi=args.dpi, n_search=args.n_search)
+    run_experiment(args.sizes, args.dim, opt_mode=False, dpi=args.dpi, n_search=args.n_search, M=args.M, ef_construction=args.ef_construction)
     # 优化模式
     if args.opt:
-        run_experiment(args.sizes, args.dim, opt_mode=True, dpi=args.dpi, n_search=args.n_search)
+        run_experiment(args.sizes, args.dim, opt_mode=True, dpi=args.dpi, n_search=args.n_search, M=args.M, ef_construction=args.ef_construction)
 
 
 

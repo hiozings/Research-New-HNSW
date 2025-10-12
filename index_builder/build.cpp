@@ -14,12 +14,16 @@
 int main(int argc, char** argv) {
     size_t N = 100000;
     size_t dim = 128;
+    int M = 16; // max neighbors
+    int ef_construction = 200;
     std::string dbpath = "./rocksdb_data";
     std::string graph_out = "./hnsw_graph.bin";
     if (argc>1) N = std::stoul(argv[1]);
     if (argc>2) dim = std::stoul(argv[2]);
     if (argc>3) dbpath = argv[3];
     if (argc>4) graph_out = argv[4];
+    if (argc>5) M = std::stoi(argv[5]);
+    if (argc>6) ef_construction = std::stoi(argv[6]);
 
     std::mt19937_64 rng(123);
     std::normal_distribution<float> nd(0.0f,1.0f);
@@ -32,7 +36,8 @@ int main(int argc, char** argv) {
 
     // build hnsw
     hnswlib::L2Space l2space((int)dim);
-    hnswlib::HierarchicalNSW<float> appr_alg(&l2space, N);
+    // hnswlib::HierarchicalNSW<float> appr_alg(&l2space, N);
+    hnswlib::HierarchicalNSW<float> appr_alg(&l2space, N, M, ef_construction);
 
     std::vector<float> v(dim);
     for (size_t i=0;i<N;i++){

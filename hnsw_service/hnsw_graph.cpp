@@ -17,10 +17,23 @@ bool HNSWGraph::load_from_file(const std::string& path, bool optimized)
     std::ifstream in(path, std::ios::binary);
     if (!in) { std::cerr<<"Failed to open graph file: "<<path<<"\n"; return false; }
 
-    uint32_t node_count;
-    in.read(reinterpret_cast<char*>(&node_count), sizeof(node_count));
-    in.read(reinterpret_cast<char*>(&entrypoint), sizeof(entrypoint));
-    in.read(reinterpret_cast<char*>(&max_level), sizeof(max_level));
+    // uint32_t node_count;
+    // in.read(reinterpret_cast<char*>(&entrypoint), sizeof(entrypoint));
+    // in.read(reinterpret_cast<char*>(&max_level), sizeof(max_level));
+    // in.read(reinterpret_cast<char*>(&node_count), sizeof(node_count));
+    uint32_t node_count_u32 = 0;
+    uint32_t entrypoint_u32 = 0;
+    uint32_t max_level_u32 = 0;
+
+    // 注意读取顺序要与 saveIndex 保持一致（你用 xxd 已确认为 entrypoint, max_level, node_count）
+    in.read(reinterpret_cast<char*>(&entrypoint_u32), sizeof(entrypoint_u32));
+    in.read(reinterpret_cast<char*>(&max_level_u32), sizeof(max_level_u32));
+    in.read(reinterpret_cast<char*>(&node_count_u32), sizeof(node_count_u32));
+
+    // 将 32-bit 值安全地转换给 class 中的变量（size_t / uint32_t）
+    entrypoint = entrypoint_u32;
+    max_level = static_cast<size_t>(max_level_u32);
+    uint32_t node_count = node_count_u32;
 
     adjacency.clear();
     adjacency.resize(node_count);
@@ -72,38 +85,7 @@ bool HNSWGraph::load_from_file(const std::string& path, bool optimized)
 
 std::vector<std::pair<uint32_t, float>> HNSWGraph::search_candidates(const HNSWGraph &g, const std::string &storage_url, const std::vector<float> &query, uint32_t entry_id, size_t ef, size_t k) const
 {
-    // std::vector<std::pair<uint32_t,float>> result;
-    // std::queue<uint32_t> q;
-    // std::unordered_set<uint32_t> seen;
-    
-    // q.push(entry_id);
-    // seen.insert(entry_id);
-    // std::vector<uint32_t> cand_ids;
-    // while (!q.empty() && cand_ids.size() < ef) {
-    //     uint32_t cur = q.front(); q.pop();
-    //     cand_ids.push_back(cur);
-    //     auto it = g.id_to_index.find(cur);
-    //     if (it == g.id_to_index.end()) continue;
-    //     // const auto &neis = g.adjacency[it->second];
-    //     const auto &neis = g.optimized ? g.load_neighbors(cur) : g.adjacency[it->second];
-    //     for (auto nb: neis) {
-    //         if (seen.insert(nb).second) q.push(nb);
-    //     }
-    // }
-    // // batch fetch via storage service endpoint /vec/batch_get if available
-    // // This implementation uses individual fetch; for production use batch endpoint.
-    // for (auto id: cand_ids) {
-    //     try {
-    //         auto vec = fetch_vector(storage_url, id);
-    //         float dist = l2_sq(query, vec);
-    //         result.emplace_back(id, dist);
-    //     } catch (...) {
-    //         // skip missing
-    //     }
-    // }
-    // std::sort(result.begin(), result.end(), [](auto &a, auto &b){ return a.second < b.second; });
-    // if (result.size() > k) result.resize(k);
-    // return result;
+   
     std::vector<std::pair<uint32_t,float>> result;
     std::queue<uint32_t> q;
     std::unordered_set<uint32_t> seen;
@@ -185,32 +167,3 @@ std::vector<uint32_t> HNSWGraph::load_neighbors(uint32_t id) const
     }
     return neigh;
 }
-
-// BFS候选搜索
-// std::vector<uint32_t> HNSWGraph::search_candidates(uint32_t entrypoint, size_t ef) 
-// {
-//     std::vector<uint32_t> res;
-//     std::queue<uint32_t> q;
-//     std::unordered_set<uint32_t> seen;// 已访问节点集合
-
-//     q.push(entrypoint);
-//     seen.insert(entrypoint);
-//     while (!q.empty() && res.size() < ef) 
-//     {
-//         uint32_t cur = q.front(); 
-//         q.pop();
-//         res.push_back(cur);
-//         // find node in nodes_
-//         // linear scan: nodes_ may be large; in production use unordered_map id->index
-//         // For simplicity build index map once? We'll linear scan (ok for demo)
-//         auto it = std::find_if(nodes_.begin(), nodes_.end(), [&](const HNSWNode& n){ return n.id == cur; });
-//         if (it == nodes_.end()) continue;
-//         if (it->levels.size() == 0) continue;
-//         for (auto nb: it->levels[0]) 
-//         {
-//             if (seen.insert(nb).second) q.push(nb);
-//         }
-//     }
-
-//     return res;
-// }
