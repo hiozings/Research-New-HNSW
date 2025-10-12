@@ -1,2 +1,3 @@
-bin/
-!bin/*.py
+/bin/
+!/bin/experiment.py
+!/bin/query.py
