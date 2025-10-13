@@ -277,7 +277,7 @@ bool HNSWGraph::load_from_file(const std::string& path, bool optimized)
                 if (l == 0) { 
                     NodeOffset info;
                    
-                    info.offset = static_cast<uint64_t>(neighbor_start_pos) + sizeof(uint32_t);
+                    info.offset = static_cast<uint64_t>(neighbor_start_pos);
                     info.degree = deg;
                     level_offsets[l][id] = info;
                 }

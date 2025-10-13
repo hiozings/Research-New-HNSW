@@ -55,12 +55,14 @@ int main(int argc, char** argv) {
     //     entry = g.entrypoint;
     // }
     httplib::Server svr;
-    // if (!optimized) 
-    // {
+    std::unique_ptr<hnswlib::L2Space> l2space;
+    std::unique_ptr<hnswlib::HierarchicalNSW<float>> hnsw;
+    if (!optimized) 
+    {
         std::cout << "[mode] normal (in-memory)\n";
-        hnswlib::L2Space l2space(dim);
-        hnswlib::HierarchicalNSW<float> hnsw(&l2space, graph_file);
-        std::cout << "Loaded HNSW graph: " << hnsw.cur_element_count << " nodes\n";
+        l2space = std::make_unique<hnswlib::L2Space>(dim);
+        hnsw = std::make_unique<hnswlib::HierarchicalNSW<float>>(l2space.get(), graph_file);
+        std::cout << "Loaded HNSW graph: " << hnsw->cur_element_count << " nodes\n";
 
 
         svr.Post("/search", [&](const httplib::Request& req, httplib::Response& res){
@@ -70,8 +72,8 @@ int main(int argc, char** argv) {
                 int k = j.value("k", k_default);
                 int efq = j.value("ef", ef);
 
-                hnsw.setEf(efq);
-                auto result = hnsw.searchKnn(query.data(), k);
+                hnsw->setEf(efq);
+                auto result = hnsw->searchKnn(query.data(), k);
 
                 json resp;
                 resp["results"] = json::array();
@@ -103,7 +105,7 @@ int main(int argc, char** argv) {
 
         svr.Get("/info", [&](const httplib::Request&, httplib::Response& res){
             json info;
-            uint64_t nodes = static_cast<uint64_t>(hnsw.cur_element_count.load());
+            uint64_t nodes = static_cast<uint64_t>(hnsw->cur_element_count.load());
             info["nodes"] = nodes;
             info["dim"] = dim;
             info["ef"] = ef;
@@ -112,63 +114,58 @@ int main(int argc, char** argv) {
 
         
 
-    // }
-    // else
-    // {
-    //     std::cout << "[mode] optimized (storage-compute separation)\n";
-        
-    //     // 修复：正确的文件路径处理
-    //     // std::string adj_path = graph_file;
-    //     // size_t dot_pos = adj_path.find_last_of('.');
-    //     // if (dot_pos != std::string::npos) {
-    //     //     adj_path = adj_path.substr(0, dot_pos) + ".adj";
-    //     // } else {
-    //     //     adj_path = graph_file + ".adj";
-    //     // }
-    //     std::string adj_path = graph_file + ".adj";
+    }
+    else
+    {
+        std::cout << "[mode] optimized (storage-compute separation)\n";
 
-    //     HNSWGraph g;
-    //     if (!g.load_from_file(adj_path, true)) {
-    //         std::cerr << "Failed to load adjacency file: " << adj_path << "\n";
-    //         return 1;
-    //     }
-        
-    //     std::cout << "Loaded adjacency-only graph: nodes=" << g.adjacency.size() 
-    //               << ", entry=" << g.entrypoint << "\n";
+        std::string adj_path = graph_file + ".adj";
 
-    //     svr.Post("/search", [&](const httplib::Request& req, httplib::Response& res){
-    //         try {
-    //             json j = json::parse(req.body);
-    //             std::vector<float> query = j["query"].get<std::vector<float>>();
-    //             int k = j.value("k", (int)k_default);
-    //             int efq = j.value("ef", (int)ef);
-    //             uint32_t entry_id = j.value("entry_id", (int)g.entrypoint);
+        // ✅ 使用智能指针管理生命周期
+        auto g_ptr = std::make_shared<HNSWGraph>();
 
-    //             auto out = g.search_candidates(g, storage_host, query, entry_id, efq, k);
-    //             json resp;
-    //             resp["results"] = json::array();
-    //             for (auto &p: out){
-    //                 resp["results"].push_back({{"id", p.first}, {"distance", p.second}});
-    //             }
-    //             resp["rss_kb"] = get_current_rss_kb();
-    //             resp["mode"] = "optimized";
-    //             res.set_content(resp.dump(), "application/json");
-    //         } catch (const std::exception &e) {
-    //             res.status = 500;
-    //             res.set_content(std::string("error: ") + e.what(), "text/plain");
-    //         }
-    //     });
+        if (!g_ptr->load_from_file(adj_path, true)) {
+            std::cerr << "Failed to load adjacency file: " << adj_path << "\n";
+            return 1;
+        }
 
-    //     svr.Get("/info", [&](const httplib::Request&, httplib::Response& res){
-    //         json info;
-    //         info["nodes"] = g.adjacency.size();
-    //         info["dim"] = dim;
-    //         info["ef"] = ef;
-    //         info["storage"] = storage_host;
-    //         info["mode"] = "optimized";
-    //         res.set_content(info.dump(), "application/json");
-    //     });
-    // }
+        std::cout << "Loaded adjacency-only graph: nodes=" << g_ptr->adjacency.size()
+                << ", entry=" << g_ptr->entrypoint << "\n";
+
+        svr.Post("/search", [g_ptr, storage_host, k_default, ef](const httplib::Request& req, httplib::Response& res) {
+            try {
+                json j = json::parse(req.body);
+                std::vector<float> query = j["query"].get<std::vector<float>>();
+                int k = j.value("k", (int)k_default);
+                int efq = j.value("ef", (int)ef);
+                uint32_t entry_id = j.value("entry_id", (int)g_ptr->entrypoint);
+
+                auto out = g_ptr->search_candidates(*g_ptr, storage_host, query, entry_id, efq, k);
+
+                json resp;
+                resp["results"] = json::array();
+                for (auto &p : out) {
+                    resp["results"].push_back({{"id", p.first}, {"distance", p.second}});
+                }
+                resp["rss_kb"] = get_current_rss_kb();
+                resp["mode"] = "optimized";
+                res.set_content(resp.dump(), "application/json");
+            } catch (const std::exception &e) {
+                res.status = 500;
+                res.set_content(std::string("error: ") + e.what(), "text/plain");
+            }
+        });
+
+        svr.Get("/info", [g_ptr, dim, ef, storage_host](const httplib::Request&, httplib::Response& res) {
+            json info;
+            info["nodes"] = g_ptr->adjacency.size();
+            info["dim"] = dim;
+            info["ef"] = ef;
+            info["storage"] = storage_host;
+            info["mode"] = "optimized";
+            res.set_content(info.dump(), "application/json");
+        });
+    }
 
     svr.Get("/mem", [&](const httplib::Request&, httplib::Response& res){
             json j;
