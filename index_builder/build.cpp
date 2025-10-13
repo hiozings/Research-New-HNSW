@@ -54,6 +54,67 @@ int main(int argc, char** argv) {
     appr_alg.saveIndex(graph_out);
     std::cerr << "HNSW index saved to " << graph_out << std::endl;
 
+    std::string adj_out = graph_out + ".adj";
+    std::ofstream out(adj_out, std::ios::binary);
+    if (!out) { std::cerr<<"Cannot write adjacency file "<<adj_out<<"\n"; delete db; return 1; }
+
+    // 写入 header（entrypoint, max_level, node_count）都作为 uint32_t（小端）
+    uint32_t node_count = static_cast<uint32_t>(appr_alg.cur_element_count);
+    uint32_t entrypoint = static_cast<uint32_t>(appr_alg.enterpoint_node_);
+    uint32_t max_level = static_cast<uint32_t>(appr_alg.maxlevel_);
+    out.write(reinterpret_cast<const char*>(&entrypoint), sizeof(entrypoint));
+    out.write(reinterpret_cast<const char*>(&max_level), sizeof(max_level));
+    out.write(reinterpret_cast<const char*>(&node_count), sizeof(node_count));
+
+    // 对每个 internal index 导出 label 和每层邻居（只导出 level0 也可，但这里按通用格式导出所有层以保留信息）
+    for (uint32_t internal_idx = 0; internal_idx < node_count; ++internal_idx) {
+        uint32_t label = static_cast<uint32_t>(appr_alg.getExternalLabel(internal_idx));
+        out.write(reinterpret_cast<const char*>(&label), sizeof(label));
+
+        int levels = appr_alg.element_levels_[internal_idx];
+        uint32_t levels_u = static_cast<uint32_t>(levels);
+        out.write(reinterpret_cast<const char*>(&levels_u), sizeof(levels_u));
+
+        for (int lev = 0; lev < levels; ++lev) {
+            // linkLists_ 存储的是 char* 指向一个内存块，第一项通常是 degree，然后是 degree 个 uint32_t neighbor
+            char* raw = nullptr;
+            size_t idx = internal_idx * (appr_alg.maxlevel_ + 1) + lev;
+            raw = appr_alg.linkLists_[ idx ];
+
+            if (!raw) {
+                uint32_t deg0 = 0;
+                out.write(reinterpret_cast<const char*>(&deg0), sizeof(deg0));
+                continue;
+            }
+
+            // read degree safely (some versions use int32 or uint16 for degree)
+            int32_t deg32 = 0;
+            std::memcpy(&deg32, raw, sizeof(deg32));
+
+            if (deg32 >= 0 && deg32 < 10000000) {
+                uint32_t deg = static_cast<uint32_t>(deg32);
+                out.write(reinterpret_cast<const char*>(&deg), sizeof(deg));
+                size_t offset = sizeof(deg32);
+                for (uint32_t j = 0; j < deg; ++j) {
+                    uint32_t nb;
+                    std::memcpy(&nb, raw + offset + j * sizeof(nb), sizeof(nb));
+                    out.write(reinterpret_cast<const char*>(&nb), sizeof(nb));
+                }
+            } else {
+                // fallback try uint16_t degree
+                uint16_t deg16 = 0;
+                std::memcpy(&deg16, raw, sizeof(deg16));
+                uint32_t deg = static_cast<uint32_t>(deg16);
+                out.write(reinterpret_cast<const char*>(&deg), sizeof(deg));
+                size_t offset = sizeof(deg16);
+                for (uint32_t j = 0; j < deg; ++j) {
+                    uint32_t nb;
+                    std::memcpy(&nb, raw + offset + j * sizeof(nb), sizeof(nb));
+                    out.write(reinterpret_cast<const char*>(&nb), sizeof(nb));
+                }
+            }
+        }
+    }
 
     delete db;
     return 0;
