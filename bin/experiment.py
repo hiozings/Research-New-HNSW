@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import subprocess, time, os, json, shutil
+import matplotlib
+matplotlib.use('Agg')  # 使用非交互式后端
 import argparse, requests, matplotlib.pyplot as plt
 
 def start_process(path, args):
@@ -38,7 +40,7 @@ def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=
         time.sleep(0.5)
 
         # 构建索引
-        proc = subprocess.run('./index_builder', [str(N), str(dim), dbpath, './hnsw_graph.bin',
+        proc = subprocess.run(['./index_builder', str(N), str(dim), dbpath, './hnsw_graph.bin',
                               str(M), str(ef_construction)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if proc.returncode != 0:
             print("index_builder failed with return code", proc.returncode)
@@ -107,6 +109,8 @@ def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=
         # 关闭服务
         hnsw.terminate()
         storage.terminate()
+        hnsw.wait()
+        storage.wait()
         time.sleep(1.0)
 
     # 汇总绘图
