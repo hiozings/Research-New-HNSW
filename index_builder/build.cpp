@@ -105,8 +105,10 @@ void export_adjacency(hnswlib::HierarchicalNSW<float>& appr_alg, const std::stri
                     unsigned int nb_label = 0; // invalid -> write 0
                     out.write(reinterpret_cast<const char*>(&nb_label), sizeof(nb_label));
                 } else {
-                    unsigned int nb_label = static_cast<unsigned int>(appr_alg.getExternalLabel(nb_internal));
-                    out.write(reinterpret_cast<const char*>(&nb_label), sizeof(nb_label));
+                    // unsigned int nb_label = static_cast<unsigned int>(appr_alg.getExternalLabel(nb_internal));
+                    // out.write(reinterpret_cast<const char*>(&nb_label), sizeof(nb_label));
+                    uint32_t nb_internal_idx = static_cast<uint32_t>(nb_internal);
+                    out.write(reinterpret_cast<const char*>(&nb_internal_idx), sizeof(nb_internal_idx));
                 }
             }
         }
