@@ -4,6 +4,7 @@ import subprocess, time, os, json, shutil
 import matplotlib
 matplotlib.use('Agg')
 import argparse, requests, matplotlib.pyplot as plt
+import random
 
 def start_process(path, args):
     """启动子进程"""
@@ -74,7 +75,12 @@ def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=
         # 测量搜索过程内存
         print(f"[INFO] Starting {n_search} search requests to measure memory...")
         mem_trace = []
-        query = {"query": [0.1] * dim, "k": 10, 'ef': 200}
+        # query = {"query": [0.1] * dim, "k": 10, 'ef': 200}
+        query = {
+            "query": [random.uniform(-1.0, 1.0) for _ in range(dim)], 
+            "k": 10, 
+            'ef': 200
+        }
 
         for i in range(n_search):
             if hnsw.poll() is not None:
@@ -83,7 +89,7 @@ def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=
 
             try:
                 # 发出/search
-                resp = requests.post("http://127.0.0.1:8080/search", json=query, timeout=5)
+                resp = requests.post("http://127.0.0.1:8080/search", json=query, timeout=10)
                 if resp.ok:
                     res = resp.json().get('results', [])
                     print(f"Search {i+1}/{n_search}: got {len(res)} results")
