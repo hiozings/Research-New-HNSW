@@ -7,13 +7,6 @@
 
 using json = nlohmann::json;
 
-// size_t get_current_rss() {
-//     std::ifstream statm("/proc/self/statm");
-//     long rss_pages = 0;
-//     statm >> rss_pages >> rss_pages;
-//     long page_size_kb = sysconf(_SC_PAGESIZE) / 1024;
-//     return rss_pages * page_size_kb; // KB
-// }
 size_t get_current_rss_kb() {
     std::ifstream statm("/proc/self/statm");
     long total_pages = 0, rss_pages = 0;
@@ -52,13 +45,6 @@ int main(int argc, char** argv) {
         else if (a=="--dim" && i+1<argc) dim = atoi(argv[++i]);
     }
 
-    // HNSWGraph g;
-    // if (!g.load_from_file(graph_file, optimized)) return 1;
-
-    // if (entry == 0 && g.id_to_index.size()>0) {
-        
-    //     entry = g.entrypoint;
-    // }
     httplib::Server svr;
     std::unique_ptr<hnswlib::L2Space> l2space;
     std::unique_ptr<hnswlib::HierarchicalNSW<float>> hnsw;
@@ -88,17 +74,6 @@ int main(int argc, char** argv) {
                     result.pop();
                     resp["results"].push_back({{"id", id}, {"distance", dist}});
                 }
-                // std::vector<std::pair<float, hnswlib::labeltype>> temp;
-                // while (!result.empty()) 
-                // {
-                //     temp.push_back(result.top());
-                //     result.pop();
-                // }
-                // // 反转顺序，让最近的结果在前
-                // for (auto it = temp.rbegin(); it != temp.rend(); ++it) 
-                // {
-                //     resp["results"].push_back({{"id", it->second}, {"distance", it->first}});
-                // }
 
                 resp["rss_kb"] = get_current_rss_kb(); // 实时内存占用
                 res.set_content(resp.dump(), "application/json");
@@ -126,7 +101,6 @@ int main(int argc, char** argv) {
 
         std::string adj_path = graph_file + ".adj";
 
-        // ✅ 使用智能指针管理生命周期
         auto g_ptr = std::make_shared<HNSWGraph>();
 
         if (!g_ptr->load_from_file(adj_path, true)) {

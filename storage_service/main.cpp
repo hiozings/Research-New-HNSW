@@ -46,10 +46,6 @@ int main(int argc, char** argv)
         std::vector<float> v;
         if (!store.get_vector(id, v)) { res.status = 404; return; }
 
-        // std::string out;
-        // out.resize(v.size()*sizeof(float));
-        // memcpy(out.data(), v.data(), out.size());
-        // res.set_content(out, "application/octet-stream");
         json j; j["id"] = id; j["values"] = v;
         res.set_content(j.dump(), "application/json");
     });
@@ -65,15 +61,6 @@ int main(int argc, char** argv)
             store.batch_get_vectors(ids, vecs);
 
             // 返回格式：每个向量前加4字节长度标识
-            // std::string out;
-            // for (auto &v: vecs) 
-            // {
-            //     uint32_t bytes = v.size() * sizeof(float);
-            //     out.append(reinterpret_cast<const char*>(&bytes), 4);
-            //     if (bytes) 
-            //         out.append(reinterpret_cast<const char*>(v.data()), bytes);
-            // }
-            // res.set_content(out, "application/octet-stream");
             json out = json::array();
             for (size_t i=0;i<ids.size();++i){
                 if (vecs[i].empty()) out.push_back(nullptr);

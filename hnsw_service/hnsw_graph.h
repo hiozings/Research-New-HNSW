@@ -69,11 +69,11 @@ struct HNSWGraph {
     uint32_t entrypoint = 0;
     size_t max_level = 0;
 
-    // 使用LRU缓存优化文件读取
+    // 缓存
     mutable LRUCache<uint32_t, std::vector<uint32_t>> neighbors_cache{10000};
     mutable std::unique_ptr<std::ifstream> file_stream;
     mutable std::unique_ptr<httplib::Client> http_client;
-    mutable std::unordered_map<uint32_t, std::vector<float>> vector_cache;// 简单缓存已获取的向量 (TO DO)
+    mutable std::unordered_map<uint32_t, std::vector<float>> vector_cache;// 简单缓存已获取的向量
 
 
     bool load_from_file(const std::string& path, bool optimized = false);
@@ -85,7 +85,7 @@ struct HNSWGraph {
         const std::vector<float>& query, uint32_t entry_id, 
         size_t ef, size_t k) const;
 
-    // 分层搜索 - 符合原始HNSW算法
+    // 分层搜索
     uint32_t search_layer_original(const std::string& storage_url,
                                   const std::vector<float>& query,
                                   uint32_t entry_point, 

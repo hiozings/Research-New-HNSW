@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import subprocess, time, os, json, shutil
 import matplotlib
-matplotlib.use('Agg')  # 使用非交互式后端
+matplotlib.use('Agg')
 import argparse, requests, matplotlib.pyplot as plt
 
 def start_process(path, args):
@@ -11,7 +11,7 @@ def start_process(path, args):
     return subprocess.Popen([path] + args, stdout=dev_null, stderr=dev_null, text=True)
 
 def get_hnsw_mem(port=8080):
-    """调用 /mem 接口获取 hnsw_service 的 RSS（MB）"""
+    """调用 /mem 接口获取 hnsw_service 的 RSS"""
     try:
         resp = requests.get(f"http://127.0.0.1:{port}/mem", timeout=3)
         if resp.ok:
@@ -21,7 +21,7 @@ def get_hnsw_mem(port=8080):
     return 0.0
 
 def clean_data(dbpath='./rocksdb_data'):
-    """删除旧的 RocksDB 数据与图文件"""
+    """删除旧的数据"""
     if os.path.exists(dbpath):
         shutil.rmtree(dbpath)
     if os.path.exists('./hnsw_graph.bin'):
@@ -53,27 +53,8 @@ def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=
         storage = start_process('./storage_service', [dbpath, '8081'])
         time.sleep(1.0)
 
-        storage_ready = False
-        for i in range(10):
-            try:
-                resp = requests.get("http://127.0.0.1:8081/vec/get?id=0", timeout=2)
-                if resp.status_code == 200 or resp.status_code == 404:
-                    storage_ready = True
-                    break
-            except:
-                pass
-            time.sleep(0.5)
-        
-        if not storage_ready:
-            print("❌ storage_service 启动失败")
-            storage.terminate()
-            storage.wait()
-            continue
 
         graph_path = './hnsw_graph.bin'
-        # if opt_mode:
-        #     graph_path = './hnsw_graph.bin.adj'
-        # 启动 hnsw_service
         hnsw = start_process(
             './hnsw_service',
             ['--graph', graph_path,
@@ -85,43 +66,12 @@ def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=
         )
         time.sleep(1.5)
 
-        hnsw_ready = False
-        for i in range(15):
-            # 检查进程是否还在运行
-            if hnsw.poll() is not None:
-                print("❌ hnsw_service 启动失败，进程已退出")
-                stdout, stderr = hnsw.communicate()
-                if stderr:
-                    print("STDERR:", stderr.decode())
-                break
-            
-            # 检查服务是否可访问
-            try:
-                resp = requests.get("http://127.0.0.1:8080/info", timeout=2)
-                if resp.ok:
-                    hnsw_ready = True
-                    print("✅ hnsw_service 启动成功")
-                    break
-            except:
-                pass
-            time.sleep(0.5)
-        
-        if not hnsw_ready:
-            print("❌ hnsw_service 无法访问")
-            hnsw.terminate()
-            storage.terminate()
-            hnsw.wait()
-            storage.wait()
-            continue
-
-        print(f"[INFO] Services started for N={N}. Measuring memory usage...")
-
         for _ in range(10):
             if get_hnsw_mem() > 0:
                 break
             time.sleep(0.5)
 
-        # 实时测量搜索过程内存
+        # 测量搜索过程内存
         print(f"[INFO] Starting {n_search} search requests to measure memory...")
         mem_trace = []
         query = {"query": [0.1] * dim, "k": 10, 'ef': 200}
@@ -132,7 +82,7 @@ def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=
                 break
 
             try:
-                # 发出一次 /search
+                # 发出/search
                 resp = requests.post("http://127.0.0.1:8080/search", json=query, timeout=5)
                 if resp.ok:
                     res = resp.json().get('results', [])
@@ -140,10 +90,9 @@ def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=
                 else:
                     print(f"Search {i+1}/{n_search}: HTTP {resp.status_code}")
             except requests.exceptions.Timeout:
-                print(f"Search {i+1}/{n_search}: 超时 - 服务可能已崩溃")
-                # 检查服务是否真的崩溃了
+                print(f"Search {i+1}/{n_search}: 超时，服务可能已崩溃")
                 if hnsw.poll() is not None:
-                    print("确认: hnsw_service 已崩溃")
+                    print("hnsw_service 已崩溃")
                     break
             except Exception as e:
                 print(f"Search {i+1} failed:", e)
@@ -205,20 +154,19 @@ def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=
     # 保存结果
     with open(f'res/results_{mode}.json', 'w') as f:
         json.dump(results, f, indent=2)
-    print(f"\n✅ {mode} experiment finished. Results saved to res/results_{mode}.json and res/memory_usage_{mode}.png")
+    print(f"\n{mode} experiment finished. Results saved to res/results_{mode}.json and res/memory_usage_{mode}.png")
 
     return results
 
 def calculate_memory_reduction(baseline_results, optimized_results, dpi=200):
-    """计算内存下降比例并绘图"""
-    # 按N值对齐结果
+    """计算内存下降比例"""
     baseline_dict = {r['N']: r for r in baseline_results}
     optimized_dict = {r['N']: r for r in optimized_results}
     
     # 确保N值集合一致
     common_Ns = sorted(set(baseline_dict.keys()) & set(optimized_dict.keys()))
     if not common_Ns:
-        print("❌ 没有可对比的N值数据")
+        print("没有可对比的N值数据")
         return
     
     # 计算平均内存和峰值内存的下降比例
@@ -229,7 +177,6 @@ def calculate_memory_reduction(baseline_results, optimized_results, dpi=200):
         baseline = baseline_dict[N]
         optimized = optimized_dict[N]
         
-        # 避免除以零
         if baseline['avg_rss'] == 0:
             avg_reduction = 0.0
         else:
@@ -251,7 +198,7 @@ def calculate_memory_reduction(baseline_results, optimized_results, dpi=200):
     plt.xlabel('Vector Count (N)')
     plt.ylabel('Memory Reduction (%)')
     plt.title('HNSW Optimized Mode Memory Reduction')
-    plt.ylim(0, 100)  # 百分比范围0-100
+    plt.ylim(0, 100)
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
@@ -267,7 +214,7 @@ def calculate_memory_reduction(baseline_results, optimized_results, dpi=200):
     
     with open('res/memory_reduction.json', 'w') as f:
         json.dump(reduction_results, f, indent=2)
-    print(f"\n✅ 内存下降比例计算完成，结果保存到 res/memory_reduction.png 和 res/memory_reduction.json")
+    print(f"\n内存下降比例计算完成，结果保存到 res/memory_reduction.png 和 res/memory_reduction.json")
 
 
 if __name__ == '__main__':

@@ -13,134 +13,6 @@ using json = nlohmann::json;
 
 bool HNSWGraph::load_from_file(const std::string& path, bool optimized) 
 {
-    // this->optimized = optimized;
-    // graph_file_path = path;
-
-    // std::ifstream in(path, std::ios::binary);
-    // if (!in) { 
-    //     std::cerr << "Failed to open graph file: " << path << "\n"; 
-    //     return false; 
-    // }
-
-    // // 读取文件头
-    // uint32_t entrypoint_u32 = 0, max_level_u32 = 0, node_count_u32 = 0;
-    
-    // if (!in.read(reinterpret_cast<char*>(&entrypoint_u32), sizeof(entrypoint_u32)) ||
-    //     !in.read(reinterpret_cast<char*>(&max_level_u32), sizeof(max_level_u32)) ||
-    //     !in.read(reinterpret_cast<char*>(&node_count_u32), sizeof(node_count_u32))) {
-    //     std::cerr << "Failed to read graph header" << std::endl;
-    //     return false;
-    // }
-
-    // entrypoint = entrypoint_u32;
-    // max_level = static_cast<size_t>(max_level_u32);
-    // uint32_t node_count = node_count_u32;
-
-    // std::cout << "Loading HNSW graph: nodes=" << node_count 
-    //           << ", entry=" << entrypoint << ", max_level=" << max_level << std::endl;
-
-    // // 初始化数据结构
-    // adjacency.clear();
-    // adjacency.resize(node_count);
-    // id_to_index.clear();
-    // level_offsets.clear();
-    // levels_neighbors.clear();
-    // level_offsets.resize(max_level + 1);
-    // levels_neighbors.resize(max_level + 1);
-
-    // // 读取节点数据
-    // for (uint32_t i = 0; i < node_count; i++) {
-    //     std::cout << "\rReading node " << (i + 1) << "/" << node_count << std::endl;
-
-    //     if (in.eof()) {
-    //         std::cerr << "Unexpected EOF at node " << i << std::endl;
-    //         return false;
-    //     }
-
-    //     uint32_t id;
-    //     if (!in.read(reinterpret_cast<char*>(&id), sizeof(id))) {
-    //         std::cerr << "Failed to read node id at index " << i << std::endl;
-    //         return false;
-    //     }
-
-    //     uint32_t levels;
-    //     if (!in.read(reinterpret_cast<char*>(&levels), sizeof(levels))) {
-    //         std::cerr << "Failed to read levels for node " << id << std::endl;
-    //         return false;
-    //     }
-
-    //     id_to_index[id] = i;
-
-    //     std::cout << "Node " << id << " has " << levels << " levels" << std::endl;
-
-    //     // 为每个层级记录正确的文件偏移
-    //     for (uint32_t l = 0; l < levels; ++l) {
-            
-            
-    //         uint32_t deg;
-    //         // 读取 degree（消耗4字节）
-    //         if (!in.read(reinterpret_cast<char*>(&deg), sizeof(deg))) {
-    //             std::cerr << "Failed to read degree for node " << id << " level " << l << std::endl;
-    //             return false;
-    //         }
-
-    //         std:: cout << "Node " << id << " level " << l << " has degree " << deg << std::endl;
-
-    //         // 检查 degree 合理性
-    //         if (deg > 1000000) {
-    //             std::cerr << "Suspicious degree " << deg << " for node " << id << " level " << l << std::endl;
-    //             return false;
-    //         }
-
-    //         uint64_t neighbor_start = static_cast<uint64_t>(in.tellg()); // 正确：读完 deg 后立即取位置
-    //         std::cout << "Node " << id << " level " << l << " neighbor start position: " << neighbor_start << std::endl;
-
-    //         if (!optimized) {
-    //             std::vector<uint32_t> neigh(deg);
-    //             for (uint32_t d = 0; d < deg; ++d) {
-    //                 if (!in.read(reinterpret_cast<char*>(&neigh[d]), sizeof(uint32_t))) {
-    //                     std::cerr << "Failed to read neighbor for node " << id << std::endl;
-    //                     return false;
-    //                 }
-    //                 std::cout << "Node " << id << " level " << l << " neighbor " << d << ": " << neigh[d] << std::endl;
-    //             }
-    //             if (l == 0) adjacency[i] = neigh;
-    //             if (l < levels_neighbors.size()) levels_neighbors[l][id] = neigh;
-    //         } else {
-    //             if (l == 0) {
-    //                 NodeOffset info;
-    //                 info.offset = neighbor_start; // <-- 这里非常关键
-    //                 info.degree = deg;
-    //                 level_offsets[l][id] = info;
-    //             }
-    //             // 跳过邻接表数据
-    //             in.seekg(sizeof(uint32_t) * deg, std::ios::cur);
-    //             if (in.fail()) {
-    //                 std::cerr << "Failed to skip neighbors for node " << id << std::endl;
-    //                 return false;
-    //             }
-    //         }
-    //     }
-
-    //     if ((i + 1) % 10000 == 0) {
-    //         std::cout << "Loaded " << (i + 1) << "/" << node_count << " nodes" << std::endl;
-    //     }
-    // }
-
-    // if (optimized) {
-    //     file_stream = std::make_unique<std::ifstream>(graph_file_path, std::ios::binary);
-    //     if (!file_stream->is_open()) {
-    //         std::cerr << "Failed to open graph file for optimized mode: " << graph_file_path << std::endl;
-    //         return false;
-    //     }
-    // }
-
-    // std::cout << "Successfully loaded HNSW graph: nodes=" << node_count 
-    //           << ", entry=" << entrypoint << ", max_level=" << max_level;
-    // if (optimized) std::cout << " [memory optimized]";
-    // std::cout << std::endl;
-    
-    // return true;
     this->optimized = optimized;
     graph_file_path = path;
 
@@ -278,7 +150,8 @@ bool HNSWGraph::load_from_file(const std::string& path, bool optimized)
     return true;
 }
 
-void HNSWGraph::initialize_http_client(const std::string& storage_url) const {
+void HNSWGraph::initialize_http_client(const std::string& storage_url) const 
+{
     if (!http_client) {
         http_client = std::make_unique<httplib::Client>(storage_url.c_str());
         http_client->set_connection_timeout(5);
@@ -339,19 +212,8 @@ std::vector<float> HNSWGraph::fetch_vector(const std::string& storage_url, uint3
 }
 
 
-std::vector<uint32_t> HNSWGraph::get_neighbors(uint32_t id, int level) const {
-    // if (level == 0) {
-    //     return load_neighbors(id);
-    // }
-    
-    // if (!optimized && level < levels_neighbors.size()) {
-    //     auto it = levels_neighbors[level].find(id);
-    //     if (it != levels_neighbors[level].end()) {
-    //         return it->second;
-    //     }
-    // }
-    //  std::cout << "DEBUG get_neighbors: node=" << id << ", level=" << level << std::endl;
-    // return {};
+std::vector<uint32_t> HNSWGraph::get_neighbors(uint32_t id, int level) const 
+{
     if (!optimized) {
         // 普通模式的逻辑不变
         if (level == 0) {
@@ -411,11 +273,6 @@ std::vector<uint32_t> HNSWGraph::get_neighbors(uint32_t id, int level) const {
             return {};
         }
     }
-    // std::cout << "DEBUG: Read " << neigh.size() << " neighbors for node " << id << ":" << std::endl;
-    // for (size_t i = 0; i < neigh.size(); ++i) {
-    //     // std::cout << "  Neighbor " << i << ": " << neigh[i] << std::endl;
-    // }
-    // neighbors_cache.put(cache_key, neigh);
     if (file_stream->gcount() != sizeof(uint32_t) * info.degree) {
             std::cerr << "DEBUG: Read incomplete for node " << id 
                       << ", expected " << (sizeof(uint32_t) * info.degree) 
@@ -425,7 +282,8 @@ std::vector<uint32_t> HNSWGraph::get_neighbors(uint32_t id, int level) const {
     return neigh;
 }
 
-float HNSWGraph::l2_sq(const std::vector<float>& a, const std::vector<float>& b) const {
+float HNSWGraph::l2_sq(const std::vector<float>& a, const std::vector<float>& b) const 
+{
     if (a.size() != b.size()) {
         throw std::invalid_argument("Vector dimension mismatch: " + 
                                    std::to_string(a.size()) + " vs " + std::to_string(b.size()));
@@ -481,10 +339,9 @@ uint32_t HNSWGraph::search_layer_original(const std::string& storage_url,
     return current_node;
 }
 
-std::vector<std::pair<uint32_t, float>> HNSWGraph::search_base_layer_original(
-    const std::string& storage_url,
-    const std::vector<float>& query,
-    uint32_t entry_point, size_t ef, size_t k) const {
+std::vector<std::pair<uint32_t, float>> HNSWGraph::search_base_layer_original(const std::string& storage_url, const std::vector<float>& query,
+    uint32_t entry_point, size_t ef, size_t k) const 
+{
     
     using NodeDist = std::pair<float, uint32_t>;
     
@@ -590,10 +447,9 @@ std::vector<std::pair<uint32_t, float>> HNSWGraph::search_base_layer_original(
     return final_results;
 }
 
-std::vector<std::pair<uint32_t, float>> HNSWGraph::search_candidates(
-    const HNSWGraph& g, const std::string& storage_url, 
-    const std::vector<float>& query, uint32_t entry_id, 
-    size_t ef, size_t k) const {
+std::vector<std::pair<uint32_t, float>> HNSWGraph::search_candidates(const HNSWGraph& g, const std::string& storage_url, const std::vector<float>& query, uint32_t entry_id, 
+    size_t ef, size_t k) const 
+{
     
     try
     {
