@@ -3,7 +3,7 @@
 #include <../nlohmann/json.hpp>
 #include <fstream>
 #include "../hnswlib/hnswlib.h"
-
+#include <sys/resource.h>
 
 using json = nlohmann::json;
 
@@ -23,6 +23,11 @@ size_t get_current_rss_kb() {
 }
 
 int main(int argc, char** argv) {
+    struct rlimit mem_limit;
+    mem_limit.rlim_cur = 2 * 1024 * 1024 * 1024LL; // 2GB
+    mem_limit.rlim_max = 2 * 1024 * 1024 * 1024LL; // 2GB
+    setrlimit(RLIMIT_AS, &mem_limit);
+
     std::string graph_file = "./hnsw_graph.bin";
     std::string storage_host = "http://127.0.0.1:8081";
     int port = 8080;

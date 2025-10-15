@@ -486,4 +486,7 @@ CMakeFiles/hnsw_service.dir/hnsw_service/main.cpp.o: \
  /home/zyx/projects/pypro/hnsw/hnsw_service/../hnswlib/stop_condition.h \
  /home/zyx/projects/pypro/hnsw/hnsw_service/../hnswlib/bruteforce.h \
  /home/zyx/projects/pypro/hnsw/hnsw_service/../hnswlib/hnswalg.h \
- /home/zyx/projects/pypro/hnsw/hnsw_service/../hnswlib/visited_list_pool.h
+ /home/zyx/projects/pypro/hnsw/hnsw_service/../hnswlib/visited_list_pool.h \
+ /usr/include/x86_64-linux-gnu/sys/resource.h \
+ /usr/include/x86_64-linux-gnu/bits/resource.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_rusage.h

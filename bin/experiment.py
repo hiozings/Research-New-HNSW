@@ -7,7 +7,8 @@ import argparse, requests, matplotlib.pyplot as plt
 
 def start_process(path, args):
     """启动子进程"""
-    return subprocess.Popen([path] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    dev_null = open(os.devnull, 'w')
+    return subprocess.Popen([path] + args, stdout=dev_null, stderr=dev_null, text=True)
 
 def get_hnsw_mem(port=8080):
     """调用 /mem 接口获取 hnsw_service 的 RSS（MB）"""
@@ -25,6 +26,8 @@ def clean_data(dbpath='./rocksdb_data'):
         shutil.rmtree(dbpath)
     if os.path.exists('./hnsw_graph.bin'):
         os.remove('./hnsw_graph.bin')
+    if os.path.exists('./hnsw_graph.bin.adj'):
+        os.remove('./hnsw_graph.bin.adj')
 
 def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=200, n_search=20, M=16, ef_construction=200):
     results = []
@@ -41,7 +44,7 @@ def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=
 
         # 构建索引
         proc = subprocess.run(['./index_builder', str(N), str(dim), dbpath, './hnsw_graph.bin',
-                              str(M), str(ef_construction)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                              str(M), str(ef_construction)], text=True)
         if proc.returncode != 0:
             print("index_builder failed with return code", proc.returncode)
             return
@@ -50,10 +53,30 @@ def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=
         storage = start_process('./storage_service', [dbpath, '8081'])
         time.sleep(1.0)
 
+        storage_ready = False
+        for i in range(10):
+            try:
+                resp = requests.get("http://127.0.0.1:8081/vec/get?id=0", timeout=2)
+                if resp.status_code == 200 or resp.status_code == 404:
+                    storage_ready = True
+                    break
+            except:
+                pass
+            time.sleep(0.5)
+        
+        if not storage_ready:
+            print("❌ storage_service 启动失败")
+            storage.terminate()
+            storage.wait()
+            continue
+
+        graph_path = './hnsw_graph.bin'
+        # if opt_mode:
+        #     graph_path = './hnsw_graph.bin.adj'
         # 启动 hnsw_service
         hnsw = start_process(
             './hnsw_service',
-            ['--graph', './hnsw_graph.bin',
+            ['--graph', graph_path,
             '--storage', 'http://127.0.0.1:8081',
             '--port', '8080',
             '--ef', '200',
@@ -62,7 +85,37 @@ def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=
         )
         time.sleep(1.5)
 
-        # 等待 /mem 可访问
+        hnsw_ready = False
+        for i in range(15):
+            # 检查进程是否还在运行
+            if hnsw.poll() is not None:
+                print("❌ hnsw_service 启动失败，进程已退出")
+                stdout, stderr = hnsw.communicate()
+                if stderr:
+                    print("STDERR:", stderr.decode())
+                break
+            
+            # 检查服务是否可访问
+            try:
+                resp = requests.get("http://127.0.0.1:8080/info", timeout=2)
+                if resp.ok:
+                    hnsw_ready = True
+                    print("✅ hnsw_service 启动成功")
+                    break
+            except:
+                pass
+            time.sleep(0.5)
+        
+        if not hnsw_ready:
+            print("❌ hnsw_service 无法访问")
+            hnsw.terminate()
+            storage.terminate()
+            hnsw.wait()
+            storage.wait()
+            continue
+
+        print(f"[INFO] Services started for N={N}. Measuring memory usage...")
+
         for _ in range(10):
             if get_hnsw_mem() > 0:
                 break
@@ -74,18 +127,37 @@ def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=
         query = {"query": [0.1] * dim, "k": 10, 'ef': 200}
 
         for i in range(n_search):
+            if hnsw.poll() is not None:
+                print(f"❌ hnsw_service 在第 {i+1} 次搜索前已崩溃")
+                break
+
             try:
                 # 发出一次 /search
                 resp = requests.post("http://127.0.0.1:8080/search", json=query, timeout=5)
                 if resp.ok:
                     res = resp.json().get('results', [])
                     print(f"Search {i+1}/{n_search}: got {len(res)} results")
+                else:
+                    print(f"Search {i+1}/{n_search}: HTTP {resp.status_code}")
+            except requests.exceptions.Timeout:
+                print(f"Search {i+1}/{n_search}: 超时 - 服务可能已崩溃")
+                # 检查服务是否真的崩溃了
+                if hnsw.poll() is not None:
+                    print("确认: hnsw_service 已崩溃")
+                    break
             except Exception as e:
                 print(f"Search {i+1} failed:", e)
 
             # 记录当前RSS
-            rss = get_hnsw_mem()
-            mem_trace.append(rss)
+            try:
+                if hnsw.poll() is None:
+                    rss = get_hnsw_mem()
+                    mem_trace.append(rss)
+                else:
+                    mem_trace.append(0)
+            except Exception as e:
+                print(f"Failed to get memory usage:", e)
+
             time.sleep(0.2)
 
         # 计算统计数据
@@ -95,16 +167,16 @@ def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=
         print(f"[RESULT] N={N} avg={avg_mem:.1f}MB peak={peak_mem:.1f}MB")
 
         # 绘制每轮内存曲线
-        plt.figure(figsize=(6,4))
-        plt.plot(mem_trace, label=f'N={N}')
-        plt.xlabel('Search Iteration')
-        plt.ylabel('RSS (MB)')
-        plt.title(f'HNSW {mode} N={N}')
-        plt.legend()
-        plt.grid(True)
-        plt.tight_layout()
-        plt.savefig(f'res/hnsw_mem_trace_{mode}_N{N}.png', dpi=dpi)
-        plt.close()
+        # plt.figure(figsize=(6,4))
+        # plt.plot(mem_trace, label=f'N={N}')
+        # plt.xlabel('Search Iteration')
+        # plt.ylabel('RSS (MB)')
+        # plt.title(f'HNSW {mode} N={N}')
+        # plt.legend()
+        # plt.grid(True)
+        # plt.tight_layout()
+        # plt.savefig(f'res/hnsw_mem_trace_{mode}_N{N}.png', dpi=dpi)
+        # plt.close()
 
         # 关闭服务
         hnsw.terminate()
@@ -135,6 +207,69 @@ def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=
         json.dump(results, f, indent=2)
     print(f"\n✅ {mode} experiment finished. Results saved to res/results_{mode}.json and res/memory_usage_{mode}.png")
 
+    return results
+
+def calculate_memory_reduction(baseline_results, optimized_results, dpi=200):
+    """计算内存下降比例并绘图"""
+    # 按N值对齐结果
+    baseline_dict = {r['N']: r for r in baseline_results}
+    optimized_dict = {r['N']: r for r in optimized_results}
+    
+    # 确保N值集合一致
+    common_Ns = sorted(set(baseline_dict.keys()) & set(optimized_dict.keys()))
+    if not common_Ns:
+        print("❌ 没有可对比的N值数据")
+        return
+    
+    # 计算平均内存和峰值内存的下降比例
+    avg_reductions = []
+    peak_reductions = []
+    
+    for N in common_Ns:
+        baseline = baseline_dict[N]
+        optimized = optimized_dict[N]
+        
+        # 避免除以零
+        if baseline['avg_rss'] == 0:
+            avg_reduction = 0.0
+        else:
+            avg_reduction = (baseline['avg_rss'] - optimized['avg_rss']) / baseline['avg_rss'] * 100
+        
+        if baseline['peak_rss'] == 0:
+            peak_reduction = 0.0
+        else:
+            peak_reduction = (baseline['peak_rss'] - optimized['peak_rss']) / baseline['peak_rss'] * 100
+        
+        avg_reductions.append(avg_reduction)
+        peak_reductions.append(peak_reduction)
+        print(f"[REDUCTION] N={N} 平均内存下降: {avg_reduction:.1f}%  峰值内存下降: {peak_reduction:.1f}%")
+    
+    # 绘制内存下降比例图
+    plt.figure(figsize=(6,4))
+    plt.plot(common_Ns, avg_reductions, marker='o', label='Average Memory Reduction')
+    plt.plot(common_Ns, peak_reductions, marker='x', label='Peak Memory Reduction')
+    plt.xlabel('Vector Count (N)')
+    plt.ylabel('Memory Reduction (%)')
+    plt.title('HNSW Optimized Mode Memory Reduction')
+    plt.ylim(0, 100)  # 百分比范围0-100
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig('res/memory_reduction.png', dpi=dpi)
+    plt.close()
+    
+    # 保存下降比例结果
+    reduction_results = [{
+        'N': N,
+        'avg_reduction_pct': avg,
+        'peak_reduction_pct': peak
+    } for N, avg, peak in zip(common_Ns, avg_reductions, peak_reductions)]
+    
+    with open('res/memory_reduction.json', 'w') as f:
+        json.dump(reduction_results, f, indent=2)
+    print(f"\n✅ 内存下降比例计算完成，结果保存到 res/memory_reduction.png 和 res/memory_reduction.json")
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--sizes', nargs='+', type=int, default=[10000, 50000, 100000])
@@ -147,10 +282,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # 非优化模式
-    run_experiment(args.sizes, args.dim, opt_mode=False, dpi=args.dpi, n_search=args.n_search, M=args.M, ef_construction=args.ef_construction)
+    baseline_results = run_experiment(args.sizes, args.dim, opt_mode=False, dpi=args.dpi, n_search=args.n_search, M=args.M, ef_construction=args.ef_construction)
     # 优化模式
     if args.opt:
-        run_experiment(args.sizes, args.dim, opt_mode=True, dpi=args.dpi, n_search=args.n_search, M=args.M, ef_construction=args.ef_construction)
+       optimized_results = run_experiment(args.sizes, args.dim, opt_mode=True, dpi=args.dpi, n_search=args.n_search, M=args.M, ef_construction=args.ef_construction)
+       calculate_memory_reduction(baseline_results, optimized_results, args.dpi)
 
 
 

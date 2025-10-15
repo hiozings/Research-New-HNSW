@@ -284,7 +284,18 @@ void HNSWGraph::initialize_http_client(const std::string& storage_url) const {
         http_client->set_connection_timeout(5);
         http_client->set_read_timeout(10);
         http_client->set_write_timeout(5);
+
+        // 测试连接
+        std::cout << "DEBUG: 初始化HTTP客户端连接到: " << storage_url << std::endl;
+        auto test_res = http_client->Get("/vec/get?id=0");
+        if (test_res) {
+            std::cout << "DEBUG: HTTP客户端连接测试: 状态 " << test_res->status << std::endl;
+        } else {
+            std::cerr << "DEBUG: HTTP客户端连接测试失败" << std::endl;
+        }
     }
+
+   
 }
 
 std::vector<float> HNSWGraph::fetch_vector(const std::string& storage_url, uint32_t id) const 
@@ -401,10 +412,16 @@ std::vector<uint32_t> HNSWGraph::get_neighbors(uint32_t id, int level) const {
         }
     }
     // std::cout << "DEBUG: Read " << neigh.size() << " neighbors for node " << id << ":" << std::endl;
-    for (size_t i = 0; i < neigh.size(); ++i) {
-        // std::cout << "  Neighbor " << i << ": " << neigh[i] << std::endl;
-    }
+    // for (size_t i = 0; i < neigh.size(); ++i) {
+    //     // std::cout << "  Neighbor " << i << ": " << neigh[i] << std::endl;
+    // }
     // neighbors_cache.put(cache_key, neigh);
+    if (file_stream->gcount() != sizeof(uint32_t) * info.degree) {
+            std::cerr << "DEBUG: Read incomplete for node " << id 
+                      << ", expected " << (sizeof(uint32_t) * info.degree) 
+                      << " bytes, got " << file_stream->gcount() << " bytes" << std::endl;
+            return {};
+        }
     return neigh;
 }
 
@@ -578,18 +595,37 @@ std::vector<std::pair<uint32_t, float>> HNSWGraph::search_candidates(
     const std::vector<float>& query, uint32_t entry_id, 
     size_t ef, size_t k) const {
     
-    if (g.max_level == 0) {
-        return search_base_layer_original(storage_url, query, entry_id, ef, k);
+    try
+    {
+        std::cout << "=== DEBUG: 开始分层搜索 ===" << std::endl;
+        std::cout << "入口点: " << entry_id << ", ef: " << ef << ", k: " << k << std::endl;
+        std::cout << "图最大层级: " << g.max_level << std::endl;
+
+        if (g.max_level == 0) {
+            std::cout << "DEBUG: 直接搜索底层" << std::endl;
+            return search_base_layer_original(storage_url, query, entry_id, ef, k);
+        }
+        
+        // 符合原始HNSW算法的分层搜索
+        uint32_t current_entry = entry_id;
+        
+        // 从最高层开始贪心下降
+        for (int level = static_cast<int>(g.max_level); level > 0; --level) {
+            std::cout << "DEBUG: 搜索层级 " << level << std::endl;
+            current_entry = search_layer_original(storage_url, query, current_entry, level, 1);
+            std::cout << "DEBUG: 层级 " << level << " 搜索完成，当前入口: " << current_entry << std::endl;
+        }
+        
+        // 在底层进行精细搜索
+        std::cout << "DEBUG: 开始底层精细搜索" << std::endl;
+        return search_base_layer_original(storage_url, query, current_entry, ef, k);
     }
-    
-    // 符合原始HNSW算法的分层搜索
-    uint32_t current_entry = entry_id;
-    
-    // 从最高层开始贪心下降
-    for (int level = static_cast<int>(g.max_level); level > 0; --level) {
-        current_entry = search_layer_original(storage_url, query, current_entry, level, 1);
+    catch (const std::exception& e) {
+       std::cerr << "搜索过程中发生异常: " << e.what() << std::endl;
+        return {};
     }
-    
-    // 在底层进行精细搜索
-    return search_base_layer_original(storage_url, query, current_entry, ef, k);
+    catch (...) {
+        std::cerr << "搜索过程中发生未知异常" << std::endl;
+        return {};
+    }
 }
