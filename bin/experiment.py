@@ -14,7 +14,7 @@ def start_process(path, args):
 def get_hnsw_mem(port=8080):
     """调用 /mem 接口获取 hnsw_service 的 RSS"""
     try:
-        resp = requests.get(f"http://127.0.0.1:{port}/mem", timeout=3)
+        resp = requests.get(f"http://127.0.0.1:{port}/mem", timeout=20)
         if resp.ok:
             return resp.json().get("rss_kb", 0.0) / 1024.0
     except Exception as e:
@@ -67,6 +67,7 @@ def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=
         )
         time.sleep(1.5)
 
+        #确保/mem接口正常
         for _ in range(10):
             if get_hnsw_mem() > 0:
                 break
@@ -84,12 +85,12 @@ def run_experiment(sizes, dim=128, dbpath='./rocksdb_data', opt_mode=False, dpi=
 
         for i in range(n_search):
             if hnsw.poll() is not None:
-                print(f"❌ hnsw_service 在第 {i+1} 次搜索前已崩溃")
+                print(f"hnsw_service 在第 {i+1} 次搜索前已崩溃")
                 break
 
             try:
                 # 发出/search
-                resp = requests.post("http://127.0.0.1:8080/search", json=query, timeout=10)
+                resp = requests.post("http://127.0.0.1:8080/search", json=query, timeout=120)
                 if resp.ok:
                     res = resp.json().get('results', [])
                     print(f"Search {i+1}/{n_search}: got {len(res)} results")
@@ -229,7 +230,7 @@ if __name__ == '__main__':
     parser.add_argument('--dim', type=int, default=128)
     parser.add_argument('--opt', action='store_true', help='also run optimized mode test')
     parser.add_argument('--dpi', type=int, default=200)
-    parser.add_argument('--n_search', type=int, default=20, help='number of /search requests per test')
+    parser.add_argument('--n_search', type=int, default=10, help='number of /search requests per test')
     parser.add_argument('--M', type=int, default=16, help='max neighbors per node')
     parser.add_argument('--ef_construction', type=int, default=200, help='ef_construction parameter')
     args = parser.parse_args()

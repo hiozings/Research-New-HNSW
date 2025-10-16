@@ -14,48 +14,48 @@ struct NodeOffset {
     uint32_t degree;
 };
 
-// 简单的LRU缓存
-template<typename K, typename V>
-class LRUCache {
-private:
-    size_t capacity_;
-    std::list<std::pair<K, V>> cache_list_;
-    std::unordered_map<K, typename std::list<std::pair<K, V>>::iterator> cache_map_;
+// // 简单的LRU缓存
+// template<typename K, typename V>
+// class LRUCache {
+// private:
+//     size_t capacity_;
+//     std::list<std::pair<K, V>> cache_list_;
+//     std::unordered_map<K, typename std::list<std::pair<K, V>>::iterator> cache_map_;
 
-public:
-    LRUCache(size_t capacity) : capacity_(capacity) {}
+// public:
+//     LRUCache(size_t capacity) : capacity_(capacity) {}
     
-    V* get(const K& key) {
-        auto it = cache_map_.find(key);
-        if (it == cache_map_.end()) return nullptr;
+//     V* get(const K& key) {
+//         auto it = cache_map_.find(key);
+//         if (it == cache_map_.end()) return nullptr;
         
-        // 移动到前面
-        cache_list_.splice(cache_list_.begin(), cache_list_, it->second);
-        return &(it->second->second);
-    }
+//         // 移动到前面
+//         cache_list_.splice(cache_list_.begin(), cache_list_, it->second);
+//         return &(it->second->second);
+//     }
     
-    void put(const K& key, const V& value) {
-        auto it = cache_map_.find(key);
-        if (it != cache_map_.end()) {
-            // 更新现有值并移动到前面
-            it->second->second = value;
-            cache_list_.splice(cache_list_.begin(), cache_list_, it->second);
-            return;
-        }
+//     void put(const K& key, const V& value) {
+//         auto it = cache_map_.find(key);
+//         if (it != cache_map_.end()) {
+//             // 更新现有值并移动到前面
+//             it->second->second = value;
+//             cache_list_.splice(cache_list_.begin(), cache_list_, it->second);
+//             return;
+//         }
         
-        // 添加新元素
-        cache_list_.emplace_front(key, value);
-        cache_map_[key] = cache_list_.begin();
+//         // 添加新元素
+//         cache_list_.emplace_front(key, value);
+//         cache_map_[key] = cache_list_.begin();
         
-        // 如果超过容量，移除最旧的
-        if (cache_map_.size() > capacity_) {
-            auto last = cache_list_.end();
-            last--;
-            cache_map_.erase(last->first);
-            cache_list_.pop_back();
-        }
-    }
-};
+//         // 如果超过容量，移除最旧的
+//         if (cache_map_.size() > capacity_) {
+//             auto last = cache_list_.end();
+//             last--;
+//             cache_map_.erase(last->first);
+//             cache_list_.pop_back();
+//         }
+//     }
+// };
 
 struct HNSWGraph {
     std::vector<std::vector<uint32_t>> adjacency;
@@ -70,7 +70,7 @@ struct HNSWGraph {
     size_t max_level = 0;
 
     // 缓存
-    mutable LRUCache<uint32_t, std::vector<uint32_t>> neighbors_cache{10000};
+    // mutable LRUCache<uint32_t, std::vector<uint32_t>> neighbors_cache{10000};
     mutable std::unique_ptr<std::ifstream> file_stream;
     mutable std::unique_ptr<httplib::Client> http_client;
     mutable std::unordered_map<uint32_t, std::vector<float>> vector_cache;// 简单缓存已获取的向量
